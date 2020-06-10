@@ -6,5 +6,8 @@ export TITLE="Docker Registry"
 export DESCRIPTION="A dubo image for Docker registry"
 export IMAGE_NAME="registry"
 
+# Registry is broken right now wrt gomodules
+export GO111MODULE=auto
+
 # shellcheck source=/dev/null
 . "$(cd "$(dirname "${BASH_SOURCE[0]:-$PWD}")" 2>/dev/null 1>&2 && pwd)/helpers.sh"
