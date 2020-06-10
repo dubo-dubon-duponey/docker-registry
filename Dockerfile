@@ -1,8 +1,9 @@
+ARG           BUILDER_BASE=dubodubonduponey/base:builder
+ARG           RUNTIME_BASE=dubodubonduponey/base:runtime
+
 #######################
 # Extra builder for healthchecker
 #######################
-ARG           BUILDER_BASE=dubodubonduponey/base:builder
-ARG           RUNTIME_BASE=dubodubonduponey/base:runtime
 # hadolint ignore=DL3006
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-healthcheck
 
@@ -13,7 +14,8 @@ WORKDIR       $GOPATH/src/$GIT_REPO
 RUN           git clone git://$GIT_REPO .
 RUN           git checkout $GIT_VERSION
 RUN           arch="${TARGETPLATFORM#*/}"; \
-              env GOOS=linux GOARCH="${arch%/*}" go build -mod=vendor -v -ldflags "-s -w" -o /dist/boot/bin/http-health ./cmd/http
+              env GOOS=linux GOARCH="${arch%/*}" go build -v -ldflags "-s -w" \
+                -o /dist/boot/bin/http-health ./cmd/http
 
 #######################
 # Builder custom
@@ -21,8 +23,9 @@ RUN           arch="${TARGETPLATFORM#*/}"; \
 # hadolint ignore=DL3006
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder
 
-ARG           GIT_REPO=github.com/dubo-dubon-duponey/distribution
-ARG           GIT_VERSION=XXX
+ARG           GIT_REPO=github.com/docker/distribution
+# That's 2.7.1
+ARG           GIT_VERSION=2461543d988979529609e8cb6fca9ca190dc48da
 
 WORKDIR       $GOPATH/src/$GIT_REPO
 RUN           git clone git://$GIT_REPO .
@@ -32,7 +35,7 @@ RUN           arch="${TARGETPLATFORM#*/}"; \
               REVISION=$(git rev-parse HEAD)$(if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi); \
               PKG=github.com/docker/distribution; \
               FLAGS="-X $PKG/version.Version=$VERSION -X $PKG/version.Revision=$REVISION -X $PKG/version.Package=$PKG"; \
-              env GOOS=linux GOARCH="${arch%/*}" go build -mod=vendor -v -ldflags "-s -w $FLAGS" -o /dist/boot/bin/apt-mirror ./cmd/go-apt-mirror/main.go
+              env GOOS=linux GOARCH="${arch%/*}" go build -v -ldflags "-s -w $FLAGS" -o /dist/boot/bin/registry ./cmd/registry/main.go
 
 COPY          --from=builder-healthcheck /dist/boot/bin /dist/boot/bin
 RUN           chmod 555 /dist/boot/bin/*
@@ -45,8 +48,11 @@ FROM          $RUNTIME_BASE
 
 COPY          --from=builder --chown=$BUILD_UID:root /dist .
 
-#VOLUME [ "/var/lib/aptutil", "/var/spool/go-apt-mirror", "/var/spool/go-apt-cacher"]
+EXPOSE        5000
 
-#EXPOSE 3142
+VOLUME        /data
 
-#WORKDIR "/var/lib/aptutil"
+ENV           HEALTHCHECK_URL=http://127.0.0.1:5000/v2/
+
+HEALTHCHECK   --interval=30s --timeout=30s --start-period=10s --retries=1 CMD http-health || exit 1
+

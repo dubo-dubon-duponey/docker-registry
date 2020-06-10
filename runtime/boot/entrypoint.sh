@@ -9,7 +9,5 @@ set -o errexit -o errtrace -o functrace -o nounset -o pipefail
 
 args=()
 
-[ ! "$ALSA_CARD" ]              || args+=(--card          "$ALSA_CARD")
-
 # Run once configured
-exec registry --help
+exec registry serve /config/config.yml
