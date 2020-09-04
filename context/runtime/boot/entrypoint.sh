@@ -16,5 +16,10 @@ fi
 
 # args=()
 
+# Bonjour the container
+if [ "${MDNS_NAME:-}" ]; then
+  goello-server -name "$MDNS_NAME" -host "$MDNS_HOST" -port "$PORT" -type "$MDNS_TYPE" &
+fi
+
 # Run once configured
 exec registry serve /config/config.yml
