@@ -4,7 +4,7 @@ ARG           RUNTIME_BASE=dubodubonduponey/base:runtime
 #######################
 # Extra builder for healthchecker
 #######################
-# hadolint ignore=DL3006
+# hadolint ignore=DL3006,DL3029
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-healthcheck
 
 ARG           GIT_REPO=github.com/dubo-dubon-duponey/healthcheckers
@@ -18,29 +18,9 @@ RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's
                 -o /dist/boot/bin/http-health ./cmd/http
 
 #######################
-# Registry
-#######################
-# hadolint ignore=DL3006
-FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-registry
-
-ARG           GIT_REPO=github.com/docker/distribution
-# That's 2.7.1
-# ARG           GIT_VERSION=2461543d988979529609e8cb6fca9ca190dc48da
-# August 26 2020 - golang 1.14 & include gomod fixes
-ARG           GIT_VERSION=2800ab02245e2eafc10e338939511dd1aeb5e135
-
-WORKDIR       $GOPATH/src/$GIT_REPO
-RUN           git clone git://$GIT_REPO .
-RUN           git checkout $GIT_VERSION
-# hadolint ignore=DL4006
-RUN           FLAGS="-X $GIT_REPO/version.Version=$BUILD_VERSION -X $GIT_REPO/version.Revision=$BUILD_REVISION -X $GIT_REPO/version.Package=$GIT_REPO"; \
-              env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v -ldflags "-s -w $FLAGS" \
-                -o /dist/boot/bin/registry ./cmd/registry/main.go
-
-#######################
 # Goello
 #######################
-# hadolint ignore=DL3006
+# hadolint ignore=DL3006,DL3029
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-goello
 
 ARG           GIT_REPO=github.com/dubo-dubon-duponey/goello
@@ -52,6 +32,27 @@ RUN           git checkout $GIT_VERSION
 # hadolint ignore=DL4006
 RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v -ldflags "-s -w" \
                 -o /dist/boot/bin/goello-server ./cmd/server/main.go
+
+#######################
+# Registry
+#######################
+# hadolint ignore=DL3006,DL3029
+FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-registry
+
+ARG           GIT_REPO=github.com/docker/distribution
+# That's 2.7.1
+# ARG           GIT_VERSION=2461543d988979529609e8cb6fca9ca190dc48da
+# August 26 2020 - golang 1.14 & include gomod fixes
+# Nov 13, 2020
+ARG           GIT_VERSION=551158e6008ece74eae699e2099984d8c47393a2
+
+WORKDIR       $GOPATH/src/$GIT_REPO
+RUN           git clone git://$GIT_REPO .
+RUN           git checkout $GIT_VERSION
+# hadolint ignore=DL4006
+RUN           FLAGS="-X $GIT_REPO/version.Version=$BUILD_VERSION -X $GIT_REPO/version.Revision=$BUILD_REVISION -X $GIT_REPO/version.Package=$GIT_REPO"; \
+              env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v -ldflags "-s -w $FLAGS" \
+                -o /dist/boot/bin/registry ./cmd/registry/main.go
 
 #######################
 # Builder assembly
