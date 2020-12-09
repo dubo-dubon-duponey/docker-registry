@@ -8,9 +8,7 @@ storage:
   filesystem:
     rootdirectory: /data/registry
 http:
-  addr: :5000
-  headers:
-    X-Content-Type-Options: [nosniff]
+  addr: 127.0.0.1:5000
 health:
   storagedriver:
     enabled: true

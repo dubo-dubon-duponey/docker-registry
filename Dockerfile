@@ -9,13 +9,16 @@ FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                           
 
 ARG           GIT_REPO=github.com/dubo-dubon-duponey/healthcheckers
 ARG           GIT_VERSION=51ebf8ca3d255e0c846307bf72740f731e6210c3
+ARG           BUILD_TARGET=./cmd/http
+ARG           BUILD_OUTPUT=http-health
+ARG           BUILD_FLAGS="-s -w"
 
 WORKDIR       $GOPATH/src/$GIT_REPO
 RUN           git clone git://$GIT_REPO .
 RUN           git checkout $GIT_VERSION
 # hadolint ignore=DL4006
-RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v -ldflags "-s -w" \
-                -o /dist/boot/bin/http-health ./cmd/http
+RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v \
+                -ldflags "$BUILD_FLAGS" -o /dist/boot/bin/"$BUILD_OUTPUT" "$BUILD_TARGET"
 
 #######################
 # Goello
@@ -25,13 +28,36 @@ FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                           
 
 ARG           GIT_REPO=github.com/dubo-dubon-duponey/goello
 ARG           GIT_VERSION=6f6c96ef8161467ab25be45fe3633a093411fcf2
+ARG           BUILD_TARGET=./cmd/server/main.go
+ARG           BUILD_OUTPUT=goello-server
+ARG           BUILD_FLAGS="-s -w"
 
 WORKDIR       $GOPATH/src/$GIT_REPO
 RUN           git clone git://$GIT_REPO .
 RUN           git checkout $GIT_VERSION
 # hadolint ignore=DL4006
-RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v -ldflags "-s -w" \
-                -o /dist/boot/bin/goello-server ./cmd/server/main.go
+RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v \
+                -ldflags "$BUILD_FLAGS" -o /dist/boot/bin/"$BUILD_OUTPUT" "$BUILD_TARGET"
+
+#######################
+# Caddy
+#######################
+# hadolint ignore=DL3006,DL3029
+FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-caddy
+
+# This is 2.2.1 (11/16/2020)
+ARG           GIT_REPO=github.com/caddyserver/caddy
+ARG           GIT_VERSION=385adf5d878939c381c7f73c771771d34523a1a7
+ARG           BUILD_TARGET=./cmd/caddy
+ARG           BUILD_OUTPUT=caddy
+ARG           BUILD_FLAGS="-s -w"
+
+WORKDIR       $GOPATH/src/$GIT_REPO
+RUN           git clone https://$GIT_REPO .
+RUN           git checkout $GIT_VERSION
+# hadolint ignore=DL4006
+RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v \
+                -ldflags "$BUILD_FLAGS" -o /dist/boot/bin/"$BUILD_OUTPUT" "$BUILD_TARGET"
 
 #######################
 # Registry
@@ -39,20 +65,20 @@ RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's
 # hadolint ignore=DL3006,DL3029
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-registry
 
-ARG           GIT_REPO=github.com/docker/distribution
-# That's 2.7.1
-# ARG           GIT_VERSION=2461543d988979529609e8cb6fca9ca190dc48da
 # August 26 2020 - golang 1.14 & include gomod fixes
 # Nov 13, 2020
+ARG           GIT_REPO=github.com/docker/distribution
 ARG           GIT_VERSION=551158e6008ece74eae699e2099984d8c47393a2
+ARG           BUILD_TARGET=./cmd/registry/main.go
+ARG           BUILD_OUTPUT=registry
+ARG           BUILD_FLAGS="-s -w -X $GIT_REPO/version.Version=$BUILD_VERSION -X $GIT_REPO/version.Revision=$BUILD_REVISION -X $GIT_REPO/version.Package=$GIT_REPO"
 
 WORKDIR       $GOPATH/src/$GIT_REPO
 RUN           git clone git://$GIT_REPO .
 RUN           git checkout $GIT_VERSION
 # hadolint ignore=DL4006
-RUN           FLAGS="-X $GIT_REPO/version.Version=$BUILD_VERSION -X $GIT_REPO/version.Revision=$BUILD_REVISION -X $GIT_REPO/version.Package=$GIT_REPO"; \
-              env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v -ldflags "-s -w $FLAGS" \
-                -o /dist/boot/bin/registry ./cmd/registry/main.go
+RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v \
+                -ldflags "$BUILD_FLAGS" -o /dist/boot/bin/"$BUILD_OUTPUT" "$BUILD_TARGET"
 
 #######################
 # Builder assembly
@@ -62,6 +88,7 @@ FROM          $BUILDER_BASE                                                     
 
 COPY          --from=builder-healthcheck /dist/boot/bin /dist/boot/bin
 COPY          --from=builder-registry /dist/boot/bin /dist/boot/bin
+COPY          --from=builder-caddy /dist/boot/bin /dist/boot/bin
 COPY          --from=builder-goello /dist/boot/bin /dist/boot/bin
 
 RUN           chmod 555 /dist/boot/bin/*; \
@@ -74,26 +101,65 @@ RUN           chmod 555 /dist/boot/bin/*; \
 # hadolint ignore=DL3006
 FROM          $RUNTIME_BASE
 
+USER          root
+
+# Caddy internal pki depend on this to perform certain cert manipulations
+RUN           apt-get update -qq          && \
+              apt-get install -qq --no-install-recommends \
+                libnss3-tools=2:3.42.1-1+deb10u3 && \
+              apt-get -qq autoremove      && \
+              apt-get -qq clean           && \
+              rm -rf /var/lib/apt/lists/* && \
+              rm -rf /tmp/*               && \
+              rm -rf /var/tmp/*
+
+USER          dubo-dubon-duponey
+
 COPY          --from=builder --chown=$BUILD_UID:root /dist .
 
-EXPOSE        5000
+### Front server configuration
+# Port to use
+ENV           PORT=4443
+EXPOSE        4443
+# Log verbosity for
+ENV           LOG_LEVEL=info
+# Domain name to serve
+ENV           DOMAIN="registry.local"
+# Control wether tls is going to be "internal" (eg: self-signed), or alternatively an email address to enable letsencrypt
+ENV           TLS="internal"
 
-VOLUME        /data
+# Access-control for pull and push
+# disabled, anonymous, authenticated
+ENV           PULL=anonymous
+# disabled, anonymous, authenticated
+ENV           PUSH=disabled
+# Salt and realm in case anything is authenticated
+ENV           SALT="eW91IGFyZSBzbyBzbWFydAo="
+ENV           REALM="My precious registry"
+# if authenticated, pass along a username and bcrypted password (call the container with the "hash" command to generate one)
+ENV           USERNAME=""
+ENV           PASSWORD=""
 
-# mDNS
+### mDNS broadcasting
+# Enable/disable mDNS support
+ENV           MDNS=enabled
+# Name is used as a short description for the service
 ENV           MDNS_NAME="Fancy Registry Service Name"
-ENV           MDNS_HOST="registry"
+# The service will be annonced and reachable at $MDNS_HOST.local
+ENV           MDNS_HOST=registry
+# Type being advertised
 ENV           MDNS_TYPE=_registry._tcp
 
-# Authentication
-ENV           USERNAME="dubo-dubon-duponey"
-ENV           PASSWORD="base64_bcrypt_encoded_use_caddy_hash_password_to_generate"
-ENV           REALM="My precious registry"
+# Registry data will be stored here
+VOLUME        /data
 
-# Log level and port
-ENV           LOG_LEVEL=info
-ENV           PORT=5000
+# Caddy certs will be stored here
+VOLUME        /certs
 
-ENV           HEALTHCHECK_URL=http://127.0.0.1:5000/v2/
+# Caddy uses this
+VOLUME        /tmp
 
+# Healthcheck (passthrough caddy->registry)
+ENV           HEALTHCHECK_URL=http://127.0.0.1:10042/v2/
+# TODO make interval configurable
 HEALTHCHECK   --interval=30s --timeout=30s --start-period=10s --retries=1 CMD http-health || exit 1
