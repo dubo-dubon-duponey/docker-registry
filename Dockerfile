@@ -27,7 +27,7 @@ RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-goello
 
 ARG           GIT_REPO=github.com/dubo-dubon-duponey/goello
-ARG           GIT_VERSION=6f6c96ef8161467ab25be45fe3633a093411fcf2
+ARG           GIT_VERSION=3799b6035dd5c4d5d1c061259241a9bedda810d6
 ARG           BUILD_TARGET=./cmd/server/main.go
 ARG           BUILD_OUTPUT=goello-server
 ARG           BUILD_FLAGS="-s -w"
@@ -45,9 +45,9 @@ RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's
 # hadolint ignore=DL3006,DL3029
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-caddy
 
-# This is 2.2.1 (11/16/2020)
+# This is 2.3.0
 ARG           GIT_REPO=github.com/caddyserver/caddy
-ARG           GIT_VERSION=385adf5d878939c381c7f73c771771d34523a1a7
+ARG           GIT_VERSION=1b453dd4fbea2f3a54362fb4c2115bab85cad1b7
 ARG           BUILD_TARGET=./cmd/caddy
 ARG           BUILD_OUTPUT=caddy
 ARG           BUILD_FLAGS="-s -w"
@@ -63,12 +63,14 @@ RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's
 # Registry
 #######################
 # hadolint ignore=DL3006,DL3029
-FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-registry
+FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-main
 
+ARG           GIT_REPO=github.com/docker/distribution
 # August 26 2020 - golang 1.14 & include gomod fixes
 # Nov 13, 2020
-ARG           GIT_REPO=github.com/docker/distribution
-ARG           GIT_VERSION=551158e6008ece74eae699e2099984d8c47393a2
+#ARG           GIT_VERSION=551158e6008ece74eae699e2099984d8c47393a2
+# Feb 10, 2021 - apparently reviving
+ARG           GIT_VERSION=22c074842eaad74036164f95b2182a9d0fe484b5
 ARG           BUILD_TARGET=./cmd/registry/main.go
 ARG           BUILD_OUTPUT=registry
 ARG           BUILD_FLAGS="-s -w -X $GIT_REPO/version.Version=$BUILD_VERSION -X $GIT_REPO/version.Revision=$BUILD_REVISION -X $GIT_REPO/version.Package=$GIT_REPO"
@@ -87,9 +89,9 @@ RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's
 FROM          $BUILDER_BASE                                                                                             AS builder
 
 COPY          --from=builder-healthcheck /dist/boot/bin /dist/boot/bin
-COPY          --from=builder-registry /dist/boot/bin /dist/boot/bin
-COPY          --from=builder-caddy /dist/boot/bin /dist/boot/bin
 COPY          --from=builder-goello /dist/boot/bin /dist/boot/bin
+COPY          --from=builder-caddy /dist/boot/bin /dist/boot/bin
+COPY          --from=builder-main /dist/boot/bin /dist/boot/bin
 
 RUN           chmod 555 /dist/boot/bin/*; \
               epoch="$(date --date "$BUILD_CREATED" +%s)"; \
@@ -104,6 +106,7 @@ FROM          $RUNTIME_BASE
 USER          root
 
 # Caddy internal pki depend on this to perform certain cert manipulations
+# XXX double check this - this is the only image that has it, so either add it everywhere or remove here
 RUN           apt-get update -qq          && \
               apt-get install -qq --no-install-recommends \
                 libnss3-tools=2:3.42.1-1+deb10u3 && \
@@ -135,20 +138,20 @@ ENV           PULL=anonymous
 ENV           PUSH=disabled
 # Salt and realm in case anything is authenticated
 ENV           SALT="eW91IGFyZSBzbyBzbWFydAo="
-ENV           REALM="My precious registry"
+ENV           REALM="My precious"
 # if authenticated, pass along a username and bcrypted password (call the container with the "hash" command to generate one)
 ENV           USERNAME=""
 ENV           PASSWORD=""
 
 ### mDNS broadcasting
 # Enable/disable mDNS support
-ENV           MDNS=enabled
+ENV           MDNS_ENABLED=true
 # Name is used as a short description for the service
-ENV           MDNS_NAME="Fancy Registry Service Name"
+ENV           MDNS_NAME="Fancy Service Name"
 # The service will be annonced and reachable at $MDNS_HOST.local
 ENV           MDNS_HOST=registry
 # Type being advertised
-ENV           MDNS_TYPE=_registry._tcp
+ENV           MDNS_TYPE=_http._tcp
 
 # Registry data will be stored here
 VOLUME        /data
@@ -160,6 +163,6 @@ VOLUME        /certs
 VOLUME        /tmp
 
 # Healthcheck (passthrough caddy->registry)
-ENV           HEALTHCHECK_URL=http://127.0.0.1:10042/v2/
+ENV           HEALTHCHECK_URL=http://127.0.0.1:10042/v2/?healthcheck
 # TODO make interval configurable
 HEALTHCHECK   --interval=30s --timeout=30s --start-period=10s --retries=1 CMD http-health || exit 1
