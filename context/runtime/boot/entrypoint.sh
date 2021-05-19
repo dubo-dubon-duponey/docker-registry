@@ -1,78 +1,80 @@
 #!/usr/bin/env bash
 set -o errexit -o errtrace -o functrace -o nounset -o pipefail
 
-# Ensure the data folder is writable
-[ -w "/data" ] || {
-  >&2 printf "/data is not writable. Check your mount permissions.\n"
+[ -w /certs ] || {
+  printf >&2 "/certs is not writable. Check your mount permissions.\n"
   exit 1
 }
 
-[ -w "/certs" ] || {
-  >&2 printf "/certs is not writable. Check your mount permissions.\n"
+[ -w /tmp ] || {
+  printf >&2 "/tmp is not writable. Check your mount permissions.\n"
   exit 1
 }
 
-[ -w "/tmp" ] || {
-  >&2 printf "/tmp is not writable. Check your mount permissions.\n"
+[ -w /data ] || {
+  printf >&2 "/data is not writable. Check your mount permissions.\n"
   exit 1
 }
+
+# Make sure this defaults to lockdown if not set explicitly
+readonly PULL="${PULL:-anonymous}"
+PUSH="${PUSH:-disabled}"
+# Disabled pull (for maintenance, the only case where this makes sense) implies disabled push
+[ "$PULL" != "disabled" ] || PUSH="disabled"
+
+readonly PUSH
 
 # Helpers
-case "${1:-}" in
+case "${1:-run}" in
   # Short hand helper to generate password hash
   "hash")
     shift
-    # Interactive.
-    echo "Going to generate a password hash with salt: $SALT"
-    caddy hash-password -algorithm bcrypt -salt "$SALT"
+    printf >&2 "Generating password hash\n"
+    caddy hash-password -algorithm bcrypt "$@"
     exit
   ;;
   # Helper to get the ca.crt out (once initialized)
   "cert")
-    if [ "$TLS" != internal ]; then
-      echo "Your server is not configured in self-signing mode. This command is a no-op in that case."
+    if [ "$TLS" == "" ]; then
+      printf >&2 "Your container is not configured for TLS termination - there is no local CA in that case."
       exit 1
     fi
-    if [ ! -e "/certs/pki/authorities/local/root.crt" ]; then
-      echo "No root certificate installed or generated. Run the container so that a cert is generated, or provide one at runtime."
+    if [ "$TLS" != "internal" ]; then
+      printf >&2 "Your container uses letsencrypt - there is no local CA in that case."
+      exit 1
+    fi
+    if [ ! -e /certs/pki/authorities/local/root.crt ]; then
+      printf >&2 "No root certificate installed or generated. Run the container so that a cert is generated, or provide one at runtime."
       exit 1
     fi
     cat /certs/pki/authorities/local/root.crt
     exit
   ;;
+  "run")
+    # Bonjour the container if asked to. While the PORT is no guaranteed to be mapped on the host in bridge, this does not matter since mDNS will not work at all in bridge mode.
+    if [ "${MDNS_ENABLED:-}" == true ]; then
+      goello-server -name "$MDNS_NAME" -host "$MDNS_HOST" -port "$PORT" -type "$MDNS_TYPE" &
+    fi
+
+    # If we want TLS and authentication, start caddy in the background
+    if [ "$TLS" ]; then
+      HOME=/tmp/caddy-home exec caddy run -config /config/caddy/main.conf --adapter caddyfile &
+    fi
+  ;;
 esac
-
-# Given how the caddy conf is set right now, we cannot have these be not set, so, stuff in randomized shit in there
-readonly SALT="${SALT:-"$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64 | base64)"}"
-readonly USERNAME="${USERNAME:-"$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)"}"
-readonly PASSWORD="${PASSWORD:-$(caddy hash-password -algorithm bcrypt -salt "$SALT" -plaintext "$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)")}"
-
-# Bonjour the container if asked to
-if [ "${MDNS_ENABLED:-}" == true ]; then
-  goello-server -name "$MDNS_NAME" -host "$MDNS_HOST" -port "$PORT" -type "$MDNS_TYPE" &
-fi
-
-# Make sure this defaults to lockdown if not set explicitly
-PULL="${PULL:-anonymous}"
-PUSH="${PUSH:-disabled}"
-# Disabled pull (for maintenance, the only case where this makes sense) implies disabled push
-[ "$PULL" != "disabled" ] || PUSH="disabled"
-
 
 # Override registry config proper
 export REGISTRY_LOG_LEVEL="${LOG_LEVEL:-info}"
 export REGISTRY_HTTP_SECRET="${REGISTRY_HTTP_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)}"
-export REGISTRY_HTTP_ADDR="${REGISTRY_HTTP_ADDR:-127.0.0.1:5000}"
 
-# Sugar for garbage collection
-if [ "${1:-}" == "garbage-collect" ]; then
-  shift
-  registry garbage-collect /config/registry/main.yml "$@"
-  exit
-fi
+# Helpers
+case "${1:-}" in
+  "gc")
+    shift
+    registry garbage-collect /config/registry/main.yml "$@"
+    exit
+  ;;
+esac
 
 # Run once configured
-registry serve /config/registry/main.yml &
-
-# Trick caddy into using the proper location for shit... still, /tmp keeps on being used (possibly by the pki lib?)
-HOME=/data/caddy-home exec caddy run -config /config/caddy/main.conf --adapter caddyfile "$@"
+registry serve /config/registry/main.yml "$@"
