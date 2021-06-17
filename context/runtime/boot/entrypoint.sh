@@ -16,14 +16,6 @@ set -o errexit -o errtrace -o functrace -o nounset -o pipefail
   exit 1
 }
 
-# Make sure this defaults to lockdown if not set explicitly
-readonly PULL="${PULL:-anonymous}"
-PUSH="${PUSH:-disabled}"
-# Disabled pull (for maintenance, the only case where this makes sense) implies disabled push
-[ "$PULL" != "disabled" ] || PUSH="disabled"
-
-readonly PUSH
-
 # Helpers
 case "${1:-run}" in
   # Short hand helper to generate password hash
@@ -62,6 +54,14 @@ case "${1:-run}" in
     fi
   ;;
 esac
+
+# Make sure this defaults to lockdown if not set explicitly
+readonly PULL="${PULL:-anonymous}"
+PUSH="${PUSH:-disabled}"
+# Disabled pull (for maintenance, the only case where this makes sense) implies disabled push
+[ "$PULL" != "disabled" ] || PUSH="disabled"
+
+readonly PUSH
 
 # Override registry config proper
 export REGISTRY_LOG_LEVEL="${LOG_LEVEL:-info}"
