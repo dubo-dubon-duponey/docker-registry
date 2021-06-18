@@ -117,8 +117,7 @@ FROM          $FROM_IMAGE_RUNTIME
 # XXX this just? mute the warning about certutil, but is this required?
 # not according to mat: https://caddy.community/t/how-to-enable-local-https-using-a-raspberry-pi-3/7467/9
 #RUN           apt-get update -qq          && \
-#              apt-get install -qq --no-install-recommends \
-#                libnss3-tools=2:3.42.1-1+deb10u3 && \
+#              apt-get install -qq --no-install-recommends libnss3-tools=2:3.61-1 && \
 #              apt-get -qq autoremove      && \
 #              apt-get -qq clean           && \
 #              rm -rf /var/lib/apt/lists/* && \
