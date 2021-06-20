@@ -1,5 +1,5 @@
-ARG           FROM_IMAGE_BUILDER=ghcr.io/dubo-dubon-duponey/base:builder-bullseye-2021-06-01@sha256:addbd9b89d8973df985d2d95e22383961ba7b9c04580ac6a7f406a3a9ec4731e
-ARG           FROM_IMAGE_RUNTIME=ghcr.io/dubo-dubon-duponey/base:runtime-bullseye-2021-06-01@sha256:a2b1b2f69ed376bd6ffc29e2d240e8b9d332e78589adafadb84c73b778e6bc77
+ARG           FROM_IMAGE_BUILDER=ghcr.io/dubo-dubon-duponey/base:builder-bullseye-2021-06-01@sha256:f0ba079c698161922961d9492e27469fca807b9a86a68e6162c325b62b792e81
+ARG           FROM_IMAGE_RUNTIME=ghcr.io/dubo-dubon-duponey/base:runtime-bullseye-2021-06-01@sha256:d904e13fbfd217ced9a853d932281f2f64e108d725a767858d2c1957b4e10232
 
 #######################
 # Extra builder for healthchecker
@@ -29,8 +29,8 @@ RUN           env GOARM="$(printf "%s" "$TARGETVARIANT" | tr -d v)" go build -tr
 FROM          --platform=$BUILDPLATFORM $FROM_IMAGE_BUILDER                                                             AS builder-goello
 
 ARG           GIT_REPO=github.com/dubo-dubon-duponey/goello
-ARG           GIT_VERSION=3799b60
-ARG           GIT_COMMIT=3799b6035dd5c4d5d1c061259241a9bedda810d6
+ARG           GIT_VERSION=7ce1fb5
+ARG           GIT_COMMIT=7ce1fb5d9c739128d2644fbc1968b11efcb96ca2
 ARG           GO_BUILD_SOURCE=./cmd/server
 ARG           GO_BUILD_OUTPUT=goello-server
 ARG           GO_LD_FLAGS="-s -w"
@@ -52,8 +52,8 @@ FROM          --platform=$BUILDPLATFORM $FROM_IMAGE_BUILDER                     
 
 # This is 2.4.0
 ARG           GIT_REPO=github.com/caddyserver/caddy
-ARG           GIT_VERSION=v2.4.0
-ARG           GIT_COMMIT=bc2210247861340c644d9825ac2b2860f8c6e12a
+ARG           GIT_VERSION=2.4.3
+ARG           GIT_COMMIT=9d4ed3a3236df06e54c80c4f6633b66d68ad3673
 ARG           GO_BUILD_SOURCE=./cmd/caddy
 ARG           GO_BUILD_OUTPUT=caddy
 ARG           GO_LD_FLAGS="-s -w"
@@ -116,7 +116,7 @@ FROM          $FROM_IMAGE_RUNTIME
 # XXX double check this - this is the only image that has it, so either add it everywhere or remove here
 # XXX this just? mute the warning about certutil, but is this required?
 # not according to mat: https://caddy.community/t/how-to-enable-local-https-using-a-raspberry-pi-3/7467/9
-#RUN           apt-get update -qq          && \
+#              apt-get update -qq          && \
 #              apt-get install -qq --no-install-recommends libnss3-tools=2:3.61-1 && \
 #              apt-get -qq autoremove      && \
 #              apt-get -qq clean           && \
