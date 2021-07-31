@@ -29,7 +29,7 @@ open-source Docker Registry does not provide much by default in terms of access 
     * [x] image runs with no capabilities (unless you want it on port 443)
     * [x] process runs as a non-root user, disabled login, no shell
  * lightweight
-    * [x] based on our slim [Debian bullseye version (2021-06-01)](https://github.com/dubo-dubon-duponey/docker-debian)
+    * [x] based on our slim [Debian bullseye version (2021-07-01)](https://github.com/dubo-dubon-duponey/docker-debian)
     * [x] simple entrypoint script
     * [x] multi-stage build with no installed dependencies for the runtime image
 <!--      (libnss3-tools which is required to manipulate certificates) -->
