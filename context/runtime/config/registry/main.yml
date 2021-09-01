@@ -6,11 +6,11 @@ storage:
   cache:
     blobdescriptor: inmemory
   filesystem:
-    rootdirectory: /data/registry
+    rootdirectory: /data
+  delete:
+    enabled: true
 http:
-  addr: :5000
-  headers:
-    X-Content-Type-Options: [nosniff]
+  addr: 127.0.0.1:42042
 health:
   storagedriver:
     enabled: true
