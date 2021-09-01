@@ -10,8 +10,8 @@ FROM          $FROM_REGISTRY/$FROM_IMAGE_TOOLS                                  
 FROM          --platform=$BUILDPLATFORM $FROM_REGISTRY/$FROM_IMAGE_BUILDER                                              AS fetcher-main
 
 ARG           GIT_REPO=github.com/docker/distribution
-ARG           GIT_VERSION=01f589c
-ARG           GIT_COMMIT=01f589cf8726565aa3c5c053be12873bafedbedc
+ARG           GIT_VERSION=677772e
+ARG           GIT_COMMIT=677772e08d6465bcdd09070d664bcd3ed64964a6
 
 ENV           WITH_BUILD_SOURCE=./cmd/registry/main.go
 ENV           WITH_BUILD_OUTPUT=registry
