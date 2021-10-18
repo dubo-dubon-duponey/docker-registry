@@ -10,7 +10,7 @@ storage:
   delete:
     enabled: true
 http:
-  addr: 127.0.0.1:42042
+  addr: 127.0.0.1:10042
 health:
   storagedriver:
     enabled: true
