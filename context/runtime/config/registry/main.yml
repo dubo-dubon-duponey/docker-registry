@@ -11,6 +11,11 @@ storage:
     enabled: true
 http:
   addr: 127.0.0.1:10042
+  debug:
+    addr: 127.0.0.1:10043
+    prometheus:
+      enabled: true
+      path: "/metrics"
 health:
   storagedriver:
     enabled: true
