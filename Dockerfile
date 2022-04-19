@@ -12,8 +12,11 @@ FROM          --platform=$BUILDPLATFORM $FROM_REGISTRY/$FROM_IMAGE_BUILDER      
 ARG           GIT_REPO=github.com/docker/distribution
 #ARG           GIT_VERSION=6248a88
 #ARG           GIT_COMMIT=6248a88d03badbe49c4969f802f5860b6fb2a685
-ARG           GIT_VERSION=v2.8.1
-ARG           GIT_COMMIT=b5ca020cfbe998e5af3457fda087444cf5116496
+# Borked with recent go - likely to do with it not using go mod yet and not enclined to fix
+#ARG           GIT_VERSION=v2.8.1
+#ARG           GIT_COMMIT=b5ca020cfbe998e5af3457fda087444cf5116496
+ARG           GIT_VERSION=cd51f38
+ARG           GIT_COMMIT=cd51f38d537ddef391113dd00d16f9ce8b5f9569
 
 ENV           WITH_BUILD_SOURCE=./cmd/registry/main.go
 ENV           WITH_BUILD_OUTPUT=registry
