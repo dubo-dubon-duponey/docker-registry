@@ -47,7 +47,7 @@ docker run -d \
     --net bridge \
     --cap-drop ALL \
     --read-only \
-    ghcr.io/dubo-dubon-duponey/registry
+    index.docker.io/dubodubonduponey/registry
 ```
 
 ## Acknowledgements
