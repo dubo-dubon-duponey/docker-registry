@@ -1,22 +1,20 @@
-ARG           FROM_REGISTRY=index.docker.io/dubodubonduponey
+ARG           FROM_REGISTRY=docker.io/dubodubonduponey
 
-ARG           FROM_IMAGE_BUILDER=base:builder-bullseye-2022-08-01
-ARG           FROM_IMAGE_AUDITOR=base:auditor-bullseye-2022-08-01
-ARG           FROM_IMAGE_RUNTIME=base:runtime-bullseye-2022-08-01
-ARG           FROM_IMAGE_TOOLS=tools:linux-bullseye-2022-08-01
+ARG           FROM_IMAGE_BUILDER=base:builder-bookworm-2024-03-01
+ARG           FROM_IMAGE_AUDITOR=base:auditor-bookworm-2024-03-01
+ARG           FROM_IMAGE_RUNTIME=base:runtime-bookworm-2024-03-01
+ARG           FROM_IMAGE_TOOLS=tools:linux-bookworm-2024-03-01
 
 FROM          $FROM_REGISTRY/$FROM_IMAGE_TOOLS                                                                          AS builder-tools
 
 FROM          --platform=$BUILDPLATFORM $FROM_REGISTRY/$FROM_IMAGE_BUILDER                                              AS fetcher-main
 
 ARG           GIT_REPO=github.com/docker/distribution
-#ARG           GIT_VERSION=6248a88
-#ARG           GIT_COMMIT=6248a88d03badbe49c4969f802f5860b6fb2a685
-# Borked with recent go - likely to do with it not using go mod yet and not enclined to fix
-#ARG           GIT_VERSION=v2.8.1
-#ARG           GIT_COMMIT=b5ca020cfbe998e5af3457fda087444cf5116496
-ARG           GIT_VERSION=cd51f38
-ARG           GIT_COMMIT=cd51f38d537ddef391113dd00d16f9ce8b5f9569
+# Bumping September 2023
+ARG           GIT_VERSION=v2.8.3
+ARG           GIT_COMMIT=4772604ae973031ab32dd9805a4bccf61d94909f
+
+
 
 ENV           WITH_BUILD_SOURCE=./cmd/registry/main.go
 ENV           WITH_BUILD_OUTPUT=registry
@@ -76,9 +74,13 @@ RUN           setcap 'cap_net_bind_service+ep' /dist/boot/bin/caddy
 
 RUN           RUNNING=true \
               STATIC=true \
-                dubo-check validate /dist/boot/bin/*
+                dubo-check validate /dist/boot/bin/http-health
+RUN           RUNNING=true \
+              STATIC=true \
+                dubo-check validate /dist/boot/bin/goello-server-ng
 
-RUN           RO_RELOCATIONS=true \
+RUN           RUNNING=true \
+              RO_RELOCATIONS=true \
                 dubo-check validate /dist/boot/bin/caddy
 
 RUN           chmod 555 /dist/boot/bin/*; \
@@ -127,9 +129,9 @@ EXPOSE        80
 # By default, tls should be restricted to 1.3 - you may downgrade to 1.2+ for compatibility with older clients (webdav client on macos, older browsers)
 ENV           ADVANCED_TLS_MIN=1.3
 # Name advertised by Caddy in the server http header
-ENV           ADVANCED_SERVER_NAME="DuboDubonDuponey/1.0 (Caddy/2) [$_SERVICE_NICK]"
+ENV           ADVANCED_SERVER_NAME="DuboDubonDuponey/1.0 (Caddy/2)"
 # Root certificate to trust for mTLS - this is not used if MTLS is disabled
-ENV           ADVANCED_MTLS_TRUST="/certs/mtls_ca.crt"
+ENV           ADVANCED_MTLS_TRUST="/certs/pki/authorities/local/root.crt"
 # Log verbosity for
 ENV           LOG_LEVEL="warn"
 # Whether to start caddy at all or not
@@ -151,7 +153,7 @@ ENV           TLS_AUTO=disable_redirects
 # https://pki.local
 ENV           TLS_SERVER="https://acme-v02.api.letsencrypt.org/directory"
 # Either require_and_verify or verify_if_given, or "" to disable mTLS altogether
-ENV           MTLS="require_and_verify"
+ENV           MTLS_MODE="require_and_verify"
 # Realm for authentication - set to "" to disable authentication entirely
 ENV           AUTH="My Precious Realm"
 # Provide username and password here (call the container with the "hash" command to generate a properly encrypted password, otherwise, a random one will be generated)
@@ -159,15 +161,15 @@ ENV           AUTH_USERNAME="dubo-dubon-duponey"
 ENV           AUTH_PASSWORD="cmVwbGFjZV9tZV93aXRoX3NvbWV0aGluZwo="
 ### mDNS broadcasting
 # Whether to enable MDNS broadcasting or not
-ENV           MDNS_ENABLED=true
+ENV           MOD_MDNS_ENABLED=true
 # Type to advertise
-ENV           MDNS_TYPE="_$_SERVICE_TYPE._tcp"
+ENV           MOD_MDNS_TYPE="_$_SERVICE_TYPE._tcp"
 # Name is used as a short description for the service
-ENV           MDNS_NAME="$_SERVICE_NICK mDNS display name"
-# The service will be annonced and reachable at $MDNS_HOST.local (set to empty string to disable mDNS announces entirely)
-ENV           MDNS_HOST="$_SERVICE_NICK"
+ENV           MOD_MDNS_NAME="$_SERVICE_NICK mDNS display name"
+# The service will be annonced and reachable at $MOD_MDNS_HOST.local (set to empty string to disable mDNS announces entirely)
+ENV           MOD_MDNS_HOST="$_SERVICE_NICK"
 # Also announce the service as a workstation (for example for the benefit of coreDNS mDNS)
-ENV           MDNS_STATION=true
+ENV           ADVANCED_MOD_MDNS_STATION=true
 # Caddy certs will be stored here
 VOLUME        /certs
 # Caddy uses this
