@@ -18,21 +18,15 @@ open-source Docker Registry does not provide much by default in terms of access 
  * pull can and push can be disabled separately, set to anonymous, or to a specific user
  * multi-architecture:
    * [x] linux/amd64
-   * [x] linux/386
    * [x] linux/arm64
-   * [x] linux/arm/v7
-   * [x] linux/arm/v6
-   * [x] linux/ppc64le
-   * [x] linux/s390x
  * hardened:
     * [x] image runs read-only
-    * [x] image runs with no capabilities but NET_BIND_SERVICE
+    * [x] image runs with no capabilities (you need NET_BIND_SERVICE if you want to use privileged ports obviously)
     * [x] process runs as a non-root user, disabled login, no shell
  * lightweight
-    * [x] based on our slim [Debian Bullseye](https://github.com/dubo-dubon-duponey/docker-debian)
+    * [x] based on our slim [Debian Bookworm](https://github.com/dubo-dubon-duponey/docker-debian)
     * [x] simple entrypoint script
-    * [x] multi-stage build with no installed dependencies for the runtime image
-<!--      (libnss3-tools which is required to manipulate certificates) -->
+    * [x] multi-stage build with zero packages installed in the runtime image
  * observable
     * [x] healthcheck
     * [x] log to stdout
@@ -47,7 +41,7 @@ docker run -d \
     --net bridge \
     --cap-drop ALL \
     --read-only \
-    index.docker.io/dubodubonduponey/registry
+    docker.io/dubodubonduponey/registry
 ```
 
 ## Acknowledgements
@@ -75,7 +69,7 @@ Trust the cert on mac:
 # Unclear if Debian 10 is the same or not
 sudo mkdir -p /etc/docker/certs.d/registry.local:4443
 openssl s_client -showcerts -servername registry.local -connect registry.local:4443 </dev/null 2>/dev/null | awk '/BEGIN/,/END/{ if(/BEGIN/){a++}; print}' | sudo tee /etc/docker/certs.d/registry.local:4443/ca.crt
-# XXX note that debian 9 requires explicit:
+# XXX note that debian 9 requires explicit for mDNS to work:
 # sudo apt-get install avahi-daemon avahi-discover libnss-mdns
 
 ## macOS
