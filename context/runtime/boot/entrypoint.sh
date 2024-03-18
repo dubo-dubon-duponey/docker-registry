@@ -7,6 +7,8 @@ readonly root
 . "$root/helpers.sh"
 # shellcheck source=/dev/null
 . "$root/mdns.sh"
+# shellcheck source=/dev/null
+. "$root/http.sh"
 
 helpers::dir::writable "/certs"
 helpers::dir::writable "$XDG_DATA_HOME" create
@@ -15,16 +17,37 @@ helpers::dir::writable "$XDG_RUNTIME_DIR" create
 helpers::dir::writable "$XDG_STATE_HOME" create
 helpers::dir::writable "$XDG_CACHE_HOME" create
 
-# mDNS blast if asked to
-[ "${MOD_MDNS_ENABLED:-}" != true ] || {
-  _mdns_port="$([ "$TLS" != "" ] && printf "%s" "${ADVANCED_PORT_HTTPS:-443}" || printf "%s" "${ADVANCED_PORT_HTTP:-80}")"
-  [ ! "${MOD_MDNS_STATION:-}" ] || mdns::records::add "_workstation._tcp" "$MOD_MDNS_HOST" "${MOD_MDNS_NAME:-}" "$_mdns_port"
-  mdns::records::add "${MOD_MDNS_TYPE:-_http._tcp}" "$MOD_MDNS_HOST" "${MOD_MDNS_NAME:-}" "$_mdns_port"
-  mdns::start::broadcaster
-}
+# HTTP helpers
+if [ "$MOD_HTTP_ENABLED" == true ]; then
+  case "${1:-}" in
+    # Short hand helper to generate password hash
+    "hash")
+      shift
+      http::hash "$@"
+      exit
+    ;;
+    # Helper to get the ca.crt out (once initialized)
+    "cert")
+      shift
+      http::certificate "${MOD_HTTP_TLS_MODE:-internal}" "$@"
+      exit
+    ;;
+  esac
+  http::start &
+fi
 
-# Start the sidecar
-[ "${PROXY_HTTPS_ENABLED:-}" != true ] || http::start &
+[ "${MOD_MDNS_ENABLED:-}" != true ] || \
+  mdns::start::default \
+    "${MOD_MDNS_HOST:-}" \
+    "${MOD_MDNS_NAME:-}" \
+    "${MOD_HTTP_ENABLED:-}" \
+    "${MOD_HTTP_TLS_ENABLED:-}" \
+    "${MOD_TLS_ENABLED:-}" \
+    "${ADVANCED_MOD_MDNS_STATION:-}" \
+    "${ADVANCED_MOD_MDNS_TYPE:-}" \
+    "${ADVANCED_MOD_HTTP_PORT:-}" \
+    "${ADVANCED_MOD_HTTP_PORT_INSECURE:-}" \
+    "${ADVANCED_MOD_TLS_PORT:-}"
 
 # Make sure this defaults to lockdown if not set explicitly
 readonly PULL="${PULL:-anonymous}"
