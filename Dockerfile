@@ -14,8 +14,8 @@ ARG           GIT_REPO=github.com/docker/distribution
 #ARG           GIT_VERSION=v2.8.3
 #ARG           GIT_COMMIT=4772604ae973031ab32dd9805a4bccf61d94909f
 # Just sick of it. At least the latest main finally have a go.mod
-ARG           GIT_VERSION=7c75174
-ARG           GIT_COMMIT=7c7517493c7be01aa6a9c904034bda97a6f8c378
+ARG           GIT_VERSION=3cb985c
+ARG           GIT_COMMIT=3cb985cac0cc56c643d28083c867f47902a6aae9
 
 ENV           GOFLAGS="-mod=vendor"
 
