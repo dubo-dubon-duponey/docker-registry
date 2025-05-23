@@ -12,7 +12,6 @@ readonly root
 
 helpers::dir::writable "/certs"
 helpers::dir::writable "$XDG_DATA_HOME" create
-helpers::dir::writable "$XDG_DATA_DIRS" create
 helpers::dir::writable "$XDG_RUNTIME_DIR" create
 helpers::dir::writable "$XDG_STATE_HOME" create
 helpers::dir::writable "$XDG_CACHE_HOME" create
@@ -65,10 +64,10 @@ export REGISTRY_HTTP_SECRET="${REGISTRY_HTTP_SECRET:-$(head /dev/urandom | tr -d
 case "${1:-}" in
   "gc")
     shift
-    registry garbage-collect /config/registry/main.yml "$@"
+    registry garbage-collect "$XDG_CONFIG_DIRS"/registry/main.yml "$@"
     exit
   ;;
 esac
 
 # Run once configured
-exec registry serve /config/registry/main.yml "$@"
+exec registry serve "$XDG_CONFIG_DIRS"/registry/main.yml "$@"

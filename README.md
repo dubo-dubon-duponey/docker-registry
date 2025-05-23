@@ -80,7 +80,7 @@ security add-trusted-cert -d -r trustRoot -k ~/Library/Keychains/login.keychain 
 
 
 # Alternatively, you can retrieve the CA from the container if you are on the same host and have access to the container:
-docker exec -ti registry cat /certs/pki/authorities/local/root.crt > myca.crt
+docker exec -ti registry cat "$XDG_DATA_HOME"/certs/pki/authorities/local/root.crt > myca.crt
 
 ```
 
